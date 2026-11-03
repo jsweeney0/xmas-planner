@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Christmas leave planner</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --ink: #1c2230;
+    --muted: #6b7385;
+    --line: #dde1e8;
+    --weekend: #eef0f4;
+    --focus: #2b5fd9;
+
+    --al: #5a49d6;   --al-tint: #ebe8fb;
+    --co: #12846f;   --co-tint: #dff3ee;
+    --tr: #b97a0c;   --tr-tint: #fbefd2;
+    --ph: #b83b5e;   --ph-tint: #f9e1e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #14171e;
+      --surface: #1c2029;
+      --ink: #e8ebf2;
+      --muted: #9199ad;
+      --line: #2e3442;
+      --weekend: #181b23;
+      --focus: #7fa2ff;
+
+      --al: #9d90ff;   --al-tint: #2a2650;
+      --co: #4fcfb5;   --co-tint: #16372f;
+      --tr: #f0b955;   --tr-tint: #3d3012;
+      --ph: #f08aa8;   --ph-tint: #44202d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 20px 60px;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1380px; margin: 0 auto; }
+  h1 {
+    font: 400 34px/1.15 "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    margin: 0 0 4px; letter-spacing: -0.01em;
+  }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 28px; align-items: start; }
+  .side { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  .brushes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .brushes .lbl { color: var(--muted); margin-right: 4px; }
+  .brush {
+    appearance: none; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 7px 13px; border-radius: 999px; font: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .brush .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--c, var(--muted)); }
+  .brush[aria-pressed="true"] { border-color: var(--c, var(--ink)); background: var(--t, var(--weekend)); font-weight: 600; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 26px; }
+  .stat {
+    appearance: none; text-align: left; font: inherit; color: inherit; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line));
+    border-radius: 6px; padding: 10px 14px;
+  }
+  .stat .n { font: 400 28px/1.1 "Iowan Old Style", Georgia, serif; display: block; }
+  .stat .t { color: var(--muted); font-size: 13px; }
+  .stat[aria-pressed="true"] { background: var(--t, var(--weekend)); border-color: var(--c, var(--ink)); }
+
+  .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .weekdays div { color: var(--muted); font-size: 13px; padding: 0 4px 6px; }
+  .grid { margin-bottom: 8px; }
+
+  .day {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    display: flex; flex-direction: column; min-height: 132px; overflow: hidden;
+    transition: opacity .15s;
+  }
+  .day.blank { background: transparent; border: 0; }
+  .day.weekend { background: var(--weekend); }
+  .day.dim { opacity: .3; }
+  .day.monthstart { border-top: 3px solid var(--ink); }
+  .day[data-type="al"] { background: var(--al-tint); border-color: var(--al); --tagc: var(--al); }
+  .day[data-type="co"] { background: var(--co-tint); border-color: var(--co); --tagc: var(--co); }
+  .day[data-type="tr"] { background: var(--tr-tint); border-color: var(--tr); --tagc: var(--tr); }
+  .day[data-type="ph"] { background: var(--ph-tint); border-color: var(--ph); --tagc: var(--ph); }
+
+  .head {
+    appearance: none; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+    padding: 8px 10px 4px; text-align: left; width: 100%;
+  }
+  .head .num { font: 400 22px/1 "Iowan Old Style", Georgia, serif; }
+  .head .mon { font-size: 12.5px; font-weight: 600; margin-left: 5px; }
+  .head .dow { display: none; color: var(--muted); font-size: 13px; }
+  .head .tag { font-size: 11.5px; font-weight: 600; color: var(--tagc, var(--muted)); text-align: right; }
+
+  textarea {
+    flex: 1; width: 100%; border: 0; background: transparent; color: var(--ink);
+    resize: none; font: 13.5px/1.4 inherit; font-family: inherit; padding: 2px 10px 10px; outline: none;
+  }
+  textarea::placeholder, input::placeholder { color: var(--muted); opacity: .6; }
+  .day:focus-within { box-shadow: 0 0 0 2px var(--focus); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* sidebar panels */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 14px 12px; }
+  .panel h2 { font: 400 21px/1.2 "Iowan Old Style", Georgia, serif; margin: 0 0 10px; }
+  .panel .count { color: var(--muted); font: 13px/1 -apple-system, "Segoe UI", sans-serif; margin-left: 6px; }
+  .items { list-style: none; margin: 0 0 10px; padding: 0; }
+  .item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .item input[type="checkbox"] { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--al); flex: none; }
+  .item .fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .item input[type="text"] {
+    width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; padding: 1px 2px; border-radius: 3px;
+  }
+  .item input.sub2 { font-size: 12.5px; color: var(--muted); }
+  .item.done input[type="text"]:not(.sub2) { text-decoration: line-through; color: var(--muted); }
+  .item .del {
+    appearance: none; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 0 4px; border-radius: 4px; flex: none;
+  }
+  .item .del:hover { color: var(--ph); }
+  .add { display: flex; gap: 6px; }
+  .add input {
+    flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    font: inherit; padding: 7px 10px; border-radius: 6px;
+  }
+  .add button, .tools button {
+    appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font: inherit; padding: 7px 12px; border-radius: 6px; cursor: pointer; flex: none;
+  }
+  .empty { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+
+  .tools { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; align-items: center; }
+  .tools .saved { color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 1040px) {
+    .layout { grid-template-columns: 1fr; }
+    .side { position: static; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  }
+  @media (max-width: 760px) {
+    .weekdays { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .day.blank { display: none; }
+    .day { min-height: 0; }
+    textarea { min-height: 54px; }
+    .head .dow { display: inline; }
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .brushes, .hint, .tools, .stats, .add, .del { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    .side { position: static; display: grid; grid-template-columns: 1fr 1fr; margin-top: 16px; }
+    .day { min-height: 100px; break-inside: avoid; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Christmas leave planner</h1>
+  <p class="sub">Tuesday 1 December 2026 to Sunday 10 January 2027</p>
+
+  <div class="layout">
+    <main>
+      <div class="brushes" id="brushes" role="group" aria-label="Day type"></div>
+      <p class="hint">Pick a day type, then click a date to colour it. Click the same date again to clear it. Write your actual plans in the box under each date.</p>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="weekdays" aria-hidden="true">
+        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+      </div>
+      <div class="grid" id="grid"></div>
+
+      <div class="tools">
+        <button id="print">Print</button>
+        <button id="reset">Clear everything</button>
+        <span class="saved" id="saved"></span>
+      </div>
+    </main>
+
+    <aside class="side" id="side"></aside>
+  </div>
+</div>
+
+<script>
+const KEY = 'xmas-leave-plan-2026';
+const TYPES = [
+  { id: 'al', label: 'Annual leave',      short: 'Annual leave' },
+  { id: 'co', label: 'Company day off',   short: 'Company day' },
+  { id: 'tr', label: 'Team training day', short: 'Training' },
+  { id: 'ph', label: 'Public holiday',    short: 'Public holiday' },
+];
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const start = new Date(2026, 11, 1);
+const end   = new Date(2027, 0, 10);
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+const days = [];
+for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+
+const defaults = () => ({
+  days: {
+    '2026-12-25': { type: 'ph', note: 'Christmas Day' },
+    '2026-12-26': { type: 'ph', note: "St Stephen's Day" },
+    '2027-01-01': { type: 'ph', note: "New Year's Day" },
+  },
+  todos: [],
+  people: [],
+});
+
+let state = defaults();
+let brush = 'al';
+let filter = null;
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+/* ---------- storage (falls back to memory if unavailable) ---------- */
+async function load() {
+  try {
+    const r = await window.storage.get(KEY);
+    if (r && r.value) {
+      let s = JSON.parse(r.value);
+      if (!s.days) s = { days: s, todos: [], people: [] }; // older format
+      state = { days: s.days || {}, todos: s.todos || [], people: s.people || [] };
+    }
+  } catch (e) { /* first run or storage unavailable */ }
+}
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await window.storage.set(KEY, JSON.stringify(state));
+      flash('Saved');
+    } catch (e) {
+      flash('Not saved: storage unavailable in this view');
+    }
+  }, 350);
+}
+function flash(msg) {
+  const el = document.getElementById('saved');
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
+/* ---------- calendar ---------- */
+function renderBrushes() {
+  const wrap = document.getElementById('brushes');
+  wrap.innerHTML = '<span class="lbl">Colour a day as:</span>';
+  TYPES.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'brush';
+    b.style.setProperty('--c', `var(--${t.id})`);
+    b.style.setProperty('--t', `var(--${t.id}-tint)`);
+    b.setAttribute('aria-pressed', brush === t.id);
+    b.innerHTML = `<span class="dot"></span>${t.label}`;
+    b.onclick = () => { brush = t.id; renderBrushes(); };
+    wrap.appendChild(b);
+  });
+}
+
+function isWeekday(d) { const w = d.getDay(); return w !== 0 && w !== 6; }
+
+function renderStats() {
+  const counts = { al: 0, co: 0, tr: 0, ph: 0 };
+  let weekdays = 0;
+  days.forEach(d => {
+    if (!isWeekday(d)) return;
+    weekdays++;
+    const t = state.days[iso(d)]?.type;
+    if (t) counts[t]++;
+  });
+  const off = counts.al + counts.co + counts.tr + counts.ph;
+  const el = document.getElementById('stats');
+  el.innerHTML = '';
+  const items = [
+    ...TYPES.map(t => ({ id: t.id, n: counts[t.id], t: t.id === 'al' ? 'Annual leave days used' : t.id === 'co' ? 'Company days off' : t.id === 'tr' ? 'Training days' : 'Public holidays (weekdays)' })),
+    { id: null, n: weekdays - off, t: `Working days left of ${weekdays}` },
+  ];
+  items.forEach(i => {
+    const b = document.createElement('button');
+    b.className = 'stat';
+    if (i.id) {
+      b.style.setProperty('--c', `var(--${i.id})`);
+      b.style.setProperty('--t', `var(--${i.id}-tint)`);
+      b.setAttribute('aria-pressed', filter === i.id);
+      b.title = 'Click to highlight only these days';
+      b.onclick = () => { filter = filter === i.id ? null : i.id; renderStats(); applyFilter(); };
+    } else {
+      b.style.cursor = 'default';
+      b.tabIndex = -1;
+    }
+    b.innerHTML = `<span class="n">${i.n}</span><span class="t">${i.t}</span>`;
+    el.appendChild(b);
+  });
+}
+
+function applyFilter() {
+  document.querySelectorAll('.day[data-iso]').forEach(c => {
+    const t = state.days[c.dataset.iso]?.type || null;
+    c.classList.toggle('dim', !!filter && t !== filter);
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const lead = (start.getDay() + 6) % 7; // Monday-first
+  for (let i = 0; i < lead; i++) {
+    const b = document.createElement('div'); b.className = 'day blank'; grid.appendChild(b);
+  }
+  days.forEach(d => {
+    const key = iso(d);
+    const entry = state.days[key] || {};
+    const cell = document.createElement('div');
+    const firstOfMonth = d.getDate() === 1;
+    cell.className = 'day' + (isWeekday(d) ? '' : ' weekend') + (firstOfMonth ? ' monthstart' : '');
+    cell.dataset.iso = key;
+    if (entry.type) cell.dataset.type = entry.type;
+
+    const head = document.createElement('button');
+    head.className = 'head';
+    head.setAttribute('aria-label', `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}: set as ${TYPES.find(t => t.id === brush).label}`);
+    const showMon = firstOfMonth || d.getTime() === start.getTime();
+    const tagTxt = entry.type ? TYPES.find(t => t.id === entry.type).short : '';
+    head.innerHTML =
+      `<span><span class="num">${d.getDate()}</span>${showMon ? `<span class="mon">${MON[d.getMonth()]}</span>` : ''}<span class="dow"> ${DOW[d.getDay()]}</span></span>` +
+      `<span class="tag">${tagTxt}</span>`;
+    head.onclick = () => {
+      const cur = state.days[key] || {};
+      cur.type = cur.type === brush ? null : brush;
+      state.days[key] = cur;
+      cleanup(key);
+      save(); renderGrid(); renderStats();
+    };
+
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'Plans…';
+    ta.value = entry.note || '';
+    ta.setAttribute('aria-label', `Plans for ${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`);
+    ta.oninput = () => {
+      const cur = state.days[key] || {};
+      cur.note = ta.value;
+      state.days[key] = cur;
+      cleanup(key);
+      save();
+    };
+
+    cell.append(head, ta);
+    grid.appendChild(cell);
+  });
+  applyFilter();
+}
+
+function cleanup(key) {
+  const e = state.days[key];
+  if (e && !e.type && !e.note) delete state.days[key];
+}
+
+/* ---------- sidebar lists ---------- */
+const LISTS = [
+  { key: 'todos',  title: 'Things to do',   addPh: 'Add a thing to do…', noteField: false, empty: 'Nothing yet. Add gifts, bookings, errands.' },
+  { key: 'people', title: 'People to see',  addPh: 'Add a person…',      noteField: true,  empty: 'Nobody yet. Add who you want to see, and when or where.' },
+];
+
+function renderSide() {
+  const side = document.getElementById('side');
+  side.innerHTML = '';
+  LISTS.forEach(L => side.appendChild(buildPanel(L)));
+}
+
+function buildPanel(L) {
+  const panel = document.createElement('section');
+  panel.className = 'panel';
+  const list = state[L.key];
+  const doneCount = list.filter(i => i.done).length;
+  const h = document.createElement('h2');
+  h.innerHTML = `${L.title}<span class="count">${list.length ? `${doneCount} of ${list.length} done` : ''}</span>`;
+  panel.appendChild(h);
+
+  if (!list.length) {
+    const p = document.createElement('p'); p.className = 'empty'; p.textContent = L.empty; panel.appendChild(p);
+  } else {
+    const ul = document.createElement('ul'); ul.className = 'items';
+    list.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'item' + (item.done ? ' done' : '');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = !!item.done;
+      cb.setAttribute('aria-label', `Mark "${item.text}" done`);
+      cb.onchange = () => { item.done = cb.checked; save(); renderSide(); };
+
+      const fields = document.createElement('div'); fields.className = 'fields';
+      const t = document.createElement('input');
+      t.type = 'text'; t.value = item.text; t.setAttribute('aria-label', L.title + ' item');
+      t.oninput = () => { item.text = t.value; save(); };
+      fields.appendChild(t);
+      if (L.noteField) {
+        const n = document.createElement('input');
+        n.type = 'text'; n.className = 'sub2'; n.value = item.note || '';
+        n.placeholder = 'When or where…';
+        n.setAttribute('aria-label', 'When or where');
+        n.oninput = () => { item.note = n.value; save(); };
+        fields.appendChild(n);
+      }
+
+      const del = document.createElement('button');
+      del.className = 'del'; del.textContent = '×'; del.setAttribute('aria-label', `Remove "${item.text}"`);
+      del.onclick = () => { state[L.key] = state[L.key].filter(x => x.id !== item.id); save(); renderSide(); };
+
+      li.append(cb, fields, del);
+      ul.appendChild(li);
+    });
+    panel.appendChild(ul);
+  }
+
+  const add = document.createElement('div'); add.className = 'add';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = L.addPh; inp.setAttribute('aria-label', L.addPh);
+  const btn = document.createElement('button'); btn.textContent = 'Add';
+  const doAdd = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    state[L.key].push({ id: uid(), text: v, note: '', done: false });
+    save(); renderSide();
+    // keep typing flow: refocus the new panel's input
+    const inputs = document.querySelectorAll('.add input');
+    const idx = LISTS.findIndex(x => x.key === L.key);
+    if (inputs[idx]) inputs[idx].focus();
+  };
+  btn.onclick = doAdd;
+  inp.onkeydown = e => { if (e.key === 'Enter') doAdd(); };
+  add.append(inp, btn);
+  panel.appendChild(add);
+  return panel;
+}
+
+/* ---------- global ---------- */
+document.getElementById('print').onclick = () => window.print();
+document.getElementById('reset').onclick = () => {
+  if (!confirm('Clear all colours, notes and lists?')) return;
+  state = { days: {}, todos: [], people: [] }; filter = null;
+  save(); renderGrid(); renderStats(); renderSide();
+};
+
+(async function init() {
+  await load();
+  renderBrushes(); renderGrid(); renderStats(); renderSide();
+})();
+</script>
+</body>
+</html>
